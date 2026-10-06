@@ -60,6 +60,7 @@ input.nm:focus{border-color:var(--line);background:var(--card);outline:none}
 .rule.off{opacity:.45}
 .warn{background:var(--badbg);border:1px solid var(--bad);color:var(--bad);border-radius:10px;padding:7px 10px;font-size:13px;margin:8px 0 0;display:none}
 .warn.show{display:block}
+.warn.info{background:var(--okbg);border-color:var(--pref);color:var(--pref)}
 input.nm.viol{color:var(--bad)}
 td.tot.viol span{color:var(--bad);font-weight:700}
 .rowhead{display:flex;align-items:center;gap:1px}
@@ -88,6 +89,14 @@ input.nm{flex:1;min-width:0}
 </div>
 
 <div class="card">
+  <div class="bar" style="margin-bottom:6px"><b style="font-size:14px">🌐 Google Sheet partagé</b><span class="hint" id="sheetStatus" style="margin:0"></span></div>
+  <p class="hint">Source unique des données, chargée automatiquement : colonne A = prénom (ou les lignes spéciales <b>BESOIN</b>, <b>MULTI</b>, <b>CONTIGU</b>), colonnes B→I = Lun 🌙, Mar ☀️, Mar 🌙, Mer ☀️, Mer 🌙, Jeu ☀️, Jeu 🌙, Ven ☀️. Valeurs : <b>2</b> ou ★ = préfère, <b>1</b> ou ok = possible, <b>0</b> ou x = indispo (vide = possible). L'onglet <b>Affectations</b> (créé automatiquement) conserve les ✓ : chaque modif — dispos comme affectations, proposition auto incluse — y est renvoyée. Partage requis : « Toute personne disposant du lien » (lecteur suffit).</p>
+  <div class="bar">
+    <button class="btn pri" id="loadSheet">🔄 Recharger les données</button>
+  </div>
+</div>
+
+<div class="card">
   <div class="bar">
     <div class="seg" id="mode"><button data-m="pref" class="on">1 · Dispos & préférences</button><button data-m="asg">2 · Affecter</button></div>
     <button class="btn pri" id="auto">✨ Proposition auto</button>
@@ -110,6 +119,12 @@ const SL=['☀️','🌙'];const SLN=['matin','soir/nuit'];
 const NS=8;
 const KEY='garde-arbitrage-v3';
 const DEFAULT_RULES={multi:true,contiguous:false};
+// ID du Google Sheet partagé (la partie entre /d/ et /edit dans l'URL).
+// Chargé automatiquement au démarrage : l'utilisateur n'a rien à saisir.
+const SHEET_ID='1ilTtp2scmjGRCYDfFJ3cNSgdfPcPSyIRPv1wQbuHawU';
+// URL de l'App Web Apps Script qui écrit dans le Sheet (voir instructions).
+// Vide = lecture seule. Renseigné = chaque modification est renvoyée au Sheet.
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbwb_wnZBIaBKGDPkLFEz1iBQrXI7VUsgyaR--BwqnK6d1wq2admswOSdLFOMoNopifv1w/exec';
 let st=null,mode='pref';
 
 function blank(){
@@ -134,7 +149,7 @@ if(!st.names.some(n=>n.trim().toLowerCase()==='claire')){
 }
 if(!st.rules||typeof st.rules.multi!=='boolean')st.rules={...DEFAULT_RULES};
 if(typeof st.rules.contiguous!=='boolean')st.rules.contiguous=false;
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){};scheduleSync()};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cnt=i=>st.asg.filter(a=>a[i]).length;
 const slotsOf=p=>{const s=[];for(let i=0;i<NS;i++)if(st.asg[p][i])s.push(i);return s};
@@ -151,9 +166,17 @@ function warn(msg){
   const w=document.getElementById('warn');
   if(!w)return;
   w.textContent='⛔ '+msg;
-  w.classList.add('show');
+  w.classList.add('show');w.classList.remove('info');
   clearTimeout(warn._t);
-  warn._t=setTimeout(()=>w.classList.remove('show'),3500);
+  warn._t=setTimeout(()=>w.classList.remove('show'),5000);
+}
+function info(msg){
+  const w=document.getElementById('warn');
+  if(!w)return;
+  w.textContent='✓ '+msg;
+  w.classList.add('show');w.classList.add('info');
+  clearTimeout(warn._t);
+  warn._t=setTimeout(()=>{w.classList.remove('show');w.classList.remove('info')},5000);
 }
 function movePerson(p,dir){
   const q=p+dir;
@@ -230,7 +253,7 @@ function render(){
    `<span>Préférences respectées : <b>${asgTot?prefHit+'/'+asgTot:'–'}</b></span>`+
    (horsRegles.length?`<span class="bad">⛔ Hors règles (${horsRegles.length}) : ${horsRegles.join(' · ')}</span>`:`<span class="ok">✓ Règles respectées</span>`);
   document.getElementById('hint').textContent=mode==='pref'
-    ?'Cliquez une case pour passer de Possible → ★ Préfère → Indispo. Cliquez ☀️/🌙 ×1 pour passer le besoin à 2 personnes.'
+    ?'Cliquez une case pour passer de Possible → ★ Préfère → Indispo. Cliquez ☀️/🌙 ×1 pour passer le besoin à 2 personnes. Tout est synchronisé avec le Sheet partagé.'
     :'Cliquez une case pour affecter / retirer la personne (impossible si indispo ou hors règles). Les barres à droite montrent la charge de chacun (vert = préféré).';
   document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
 }
@@ -271,6 +294,146 @@ document.getElementById('addP').onclick=()=>{
   if(name===null)return;
   addPerson(name);
 };
+// Chargement dynamique depuis le Google Sheet partagé (public en lecture).
+// Tolérant : colonnes B→I par position, valeurs 0/1/2, ★/ok/x, oui/non…
+function sheetCell(row,i){
+  const c=row.c&&row.c[i];
+  // .f (valeur formatée) en secours : Google renvoie null en .v quand le texte
+  // saisi ne correspond pas au type détecté de la colonne (ex. « x » dans
+  // une colonne numérique).
+  return c?(c.v??c.f??null):null;
+}
+function parsePrefCell(v){
+  if(v===null||v===undefined||v==='')return 1;
+  if(typeof v==='number')return v>=2?2:v<=0?0:1;
+  const s=String(v).trim().toLowerCase();
+  if(['2','★','*','pref','prefere','préfère','p','++','top'].includes(s))return 2;
+  if(['0','x','×','-','non','n','indispo','absent','ko'].includes(s))return 0;
+  return 1;
+}
+function parseNeedCell(v){
+  if(typeof v==='number')return v>=2?2:1;
+  const s=String(v??'').trim().toLowerCase();
+  return (s==='2'||s==='★'||s==='oui'||s==='x'||s==='×')?2:1;
+}
+function parseOuiCell(v){
+  if(typeof v==='boolean')return v;
+  if(typeof v==='number')return v!==0;
+  return ['oui','yes','o','y','1','true','vrai','x','×','✓','★'].includes(String(v??'').trim().toLowerCase());
+}
+function applySheetData(table){
+  // Avec headers=1, Google consomme déjà la ligne d'en-tête dans les labels :
+  // table.rows commence directement aux données. On ignore seulement les
+  // lignes vides (et une éventuelle ligne d'en-tête résiduelle « Personne »).
+  const rows=(table.rows||[]).filter(row=>{
+    const label=String(sheetCell(row,0)??'').trim();
+    return label&&label.toLowerCase()!=='personne';
+  });
+  const names=[],prefs=[];
+  let need=null,multi=null,contig=null;
+  for(const row of rows){
+    const first=sheetCell(row,0);
+    const label=String(first??'').trim();
+    if(!label)continue;
+    const low=label.toLowerCase();
+    if(low==='besoin'){need=Array.from({length:NS},(_,i)=>parseNeedCell(sheetCell(row,i+1)));continue}
+    if(low==='multi'){const mv=sheetCell(row,1);if(mv!==null&&mv!=='')multi=parseOuiCell(mv);continue}
+    if(low==='contigu'||low==='contigus'){const mv=sheetCell(row,1);if(mv!==null&&mv!=='')contig=parseOuiCell(mv);continue}
+    if(names.length>=14){warn('Sheet : plus de 14 personnes, les suivantes sont ignorées.');break}
+    names.push(label.slice(0,14));
+    prefs.push(Array.from({length:NS},(_,i)=>parsePrefCell(sheetCell(row,i+1))));
+  }
+  if(!names.length)throw new Error('aucune personne trouvée (colonne A vide ?)');
+  st.names=names;
+  st.pref=prefs;
+  st.asg=names.map(()=>Array(NS).fill(false)); // réappliquées juste après via l'onglet Affectations
+  if(need)st.need=need;
+  if(multi!==null)st.rules.multi=multi;
+  if(contig!==null)st.rules.contiguous=contig;
+}
+function parseAsgCell(v){
+  if(v===null||v===undefined||v==='')return false;
+  if(typeof v==='boolean')return v;
+  if(typeof v==='number')return v!==0;
+  return ['1','x','×','✓','v','oui','yes','y','true','vrai','★'].includes(String(v).trim().toLowerCase());
+}
+// Superpose les ✓ lus dans l'onglet Affectations (appariés par prénom,
+// ignorés si la personne est indispo sur le créneau).
+function applyAsgData(table){
+  for(const row of (table.rows||[])){
+    const label=String(sheetCell(row,0)??'').trim();
+    if(!label||label.toLowerCase()==='personne')continue;
+    const p=st.names.findIndex(n=>n.trim().toLowerCase()===label.toLowerCase());
+    if(p<0)continue;
+    for(let i=0;i<NS;i++)st.asg[p][i]=parseAsgCell(sheetCell(row,i+1))&&st.pref[p][i]>0;
+  }
+}
+function sheetStatus(msg,ok){
+  const s=document.getElementById('sheetStatus');
+  if(s){s.textContent=msg;s.className='hint '+(ok?'ok':'bad')}
+}
+// Lecture d'un onglet via balise <script> (JSONP) plutôt que fetch :
+// insensible aux restrictions CORS, fonctionne aussi en fichier local.
+function fetchGviz(tab){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    let finished=false;
+    const to=setTimeout(()=>done(new Error('délai dépassé (20 s)')),20000);
+    function done(err,data){if(finished)return;finished=true;clearTimeout(to);s.remove();err?reject(err):resolve(data)}
+    window.google=window.google||{};
+    window.google.visualization=window.google.visualization||{};
+    window.google.visualization.Query=window.google.visualization.Query||{};
+    window.google.visualization.Query.setResponse=(data)=>done(null,data);
+    s.onerror=()=>done(new Error('ressource inaccessible'));
+    s.src=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1`+(tab?`&sheet=${encodeURIComponent(tab)}`:'');
+    document.head.appendChild(s);
+  });
+}
+async function loadSheet(){
+  if(!SHEET_ID){sheetStatus('Sheet non configuré',false);return}
+  sheetStatus('Chargement…',true);
+  try{
+    const t1=await fetchGviz(null);
+    if(!t1||t1.status!=='ok')throw new Error((t1&&t1.errors&&t1.errors[0]&&t1.errors[0].detailed_message)||'erreur Sheet');
+    applySheetData(t1.table);
+    try{
+      const t2=await fetchGviz('Affectations');
+      // Garde-fou : si l'onglet n'existe pas, Google renvoie le 1er onglet.
+      // On ne superpose que si ce n'est PAS l'onglet dispos (pas de ligne BESOIN).
+      const rows2=t2&&t2.status==='ok'&&t2.table?(t2.table.rows||[]):[];
+      const isDispos=rows2.some(row=>String(sheetCell(row,0)??'').trim().toLowerCase()==='besoin');
+      if(!isDispos&&rows2.length)applyAsgData(t2.table);
+    }catch(e2){/* onglet absent : pas d'affectations à reprendre */}
+    save();render();
+    const now=new Date();
+    sheetStatus('Données à jour · '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),true);
+    info('Données rechargées depuis le Sheet.');
+  }catch(e){
+    sheetStatus('Échec du chargement',false);
+    warn('Chargement Sheet impossible : '+e.message+' (partage « toute personne disposant du lien » ?).');
+  }
+}
+document.getElementById('loadSheet').onclick=()=>loadSheet();
+// Écriture auto vers le Sheet via l'App Web Apps Script (débouncée : 1 envoi
+// max toutes les 1,5 s même en cas de clics rapides). Dernier écrivain gagne.
+let syncT=null;
+function scheduleSync(){
+  if(!SCRIPT_URL)return;
+  clearTimeout(syncT);
+  syncT=setTimeout(syncToSheet,1500);
+}
+async function syncToSheet(){
+  if(!SCRIPT_URL)return;
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({names:st.names,pref:st.pref,asg:st.asg,need:st.need,rules:st.rules})});
+    const now=new Date();
+    sheetStatus('Synchro auto ✓ '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),true);
+  }catch(err){
+    sheetStatus('Échec d’envoi (réessaiera à la prochaine modif)',false);
+  }
+}
 document.getElementById('auto').onclick=()=>{
   st.asg=st.asg.map(a=>a.map(()=>false));
   const load=Array(st.names.length).fill(0);
@@ -289,6 +452,8 @@ document.getElementById('auto').onclick=()=>{
   if(miss&&!st.rules.multi)warn(`${miss} créneau(x) non couvert(s) : la règle « max 1 / personne » bloque le remplissage. Autorisez plusieurs créneaux si besoin.`);
 };
 render();
+if(SHEET_ID)loadSheet(); // chargement automatique par défaut, sans saisie
+if(!SCRIPT_URL)sheetStatus('Envoi auto : non configuré (lecture seule pour l’instant)');
 </script>
 </body>
 </html>

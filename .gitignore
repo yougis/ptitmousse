@@ -1,0 +1,5 @@
+# Données locales du planning : persistent en fichier sur le drive,
+# jamais commitées ni poussées sur GitHub (l'appli les exporte/importe en JSON).
+garde-planning.json
+# Fichiers de dispos individuels (circuit multi-utilisateur) : idem.
+dispos-*.json
