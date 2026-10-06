@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planning garde – arbitrage</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f4ef;--card:#fff;--ink:#1d2733;--mute:#6b7785;--line:#e3dfd6;--pref:#2e9e6b;--poss:#0f6e8c;--asg:#d9822b;--bad:#c2412d;--badbg:#fbeae6;--okbg:#e4f4ec;--warnbg:#fdf0dc}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181f;--card:#1b242d;--ink:#e8edf2;--mute:#93a1af;--line:#2c3945;--pref:#46c28b;--poss:#4fb3d4;--asg:#f0a04b;--bad:#ff8a75;--badbg:#3a2420;--okbg:#1c3429;--warnbg:#3b3120}}
+:root[data-theme="dark"]{--bg:#12181f;--card:#1b242d;--ink:#e8edf2;--mute:#93a1af;--line:#2c3945;--pref:#46c28b;--poss:#4fb3d4;--asg:#f0a04b;--bad:#ff8a75;--badbg:#3a2420;--okbg:#1c3429;--warnbg:#3b3120}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.35}
+main{max-width:960px;margin:0 auto;padding:18px 12px 40px}
+h1{font-size:21px;margin:0 0 4px}
+.sub{color:var(--mute);font-size:13.5px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:7px 12px;font-size:13.5px;cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--card)}
+.btn{border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:7px 12px;font-size:13.5px;cursor:pointer}
+.btn.pri{background:var(--asg);border-color:var(--asg);color:#1d2733;font-weight:600}
+.hint{font-size:13px;color:var(--mute);margin:0 0 8px}
+.scroll{overflow-x:auto}
+table{border-collapse:separate;border-spacing:3px;min-width:560px;width:100%}
+th{font-size:12px;font-weight:600;color:var(--mute);padding:1px}
+th.dayh{color:var(--ink);font-size:13px}
+th.lbl{text-align:left;font-weight:500;font-size:12px;color:var(--mute);white-space:nowrap;padding-right:6px}
+td{padding:0}
+input.nm{font:inherit;font-size:13px;font-weight:600;width:84px;border:1px solid transparent;background:transparent;color:var(--ink);border-radius:6px;padding:4px}
+input.nm:focus{border-color:var(--line);background:var(--card);outline:none}
+.c{width:100%;min-width:30px;height:38px;border-radius:8px;border:1.5px solid transparent;cursor:pointer;font-size:14px;color:var(--ink);padding:0}
+.s0{background:repeating-linear-gradient(135deg,transparent 0 4px,var(--line) 4px 5px);border-color:var(--line);color:var(--mute)}
+.s1{background:color-mix(in srgb,var(--poss) 18%,transparent);border-color:color-mix(in srgb,var(--poss) 35%,transparent)}
+.s2{background:color-mix(in srgb,var(--pref) 50%,transparent);border-color:var(--pref)}
+.c.a{background:var(--asg);border-color:var(--asg);color:#1d2733;font-weight:700}
+.c.nok{cursor:not-allowed;opacity:.9}
+.cov{border-radius:7px;font-size:12.5px;font-weight:700;text-align:center;padding:4px 0}
+.cov.ok{background:var(--okbg);color:var(--pref)}
+.cov.miss{background:var(--badbg);color:var(--bad);border:1.5px dashed var(--bad)}
+.cov.over{background:var(--warnbg);color:var(--asg)}
+.need{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:7px;width:100%;font-size:12px;padding:3px 0;cursor:pointer}
+.cand{font-size:11px;text-align:center;color:var(--mute)}
+.tot{min-width:120px;padding-left:6px}
+.tb{display:flex;gap:2px;align-items:center;font-size:12px}
+.tb i{width:9px;height:14px;border-radius:3px;background:var(--asg)}
+.tb i.p{box-shadow:inset 0 -5px 0 var(--pref)}
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:8px}
+.leg span{display:flex;align-items:center;gap:5px}
+.sw{width:16px;height:16px;border-radius:5px;display:inline-block;border:1.5px solid transparent}
+.summary{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;margin-top:10px}
+.bad{color:var(--bad);font-weight:600}
+.ok{color:var(--pref);font-weight:600}
+.rules{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13.5px}
+.rule{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.rule input{width:17px;height:17px;accent-color:var(--asg);cursor:pointer;flex:none}
+.rule small{color:var(--mute);font-size:12px}
+.rule.off{opacity:.45}
+.warn{background:var(--badbg);border:1px solid var(--bad);color:var(--bad);border-radius:10px;padding:7px 10px;font-size:13px;margin:8px 0 0;display:none}
+.warn.show{display:block}
+input.nm.viol{color:var(--bad)}
+td.tot.viol span{color:var(--bad);font-weight:700}
+.rowhead{display:flex;align-items:center;gap:1px}
+input.nm{flex:1;min-width:0}
+.ord{display:flex;flex-direction:column;gap:0;flex:none}
+.ord button{border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:8px;line-height:1.1;padding:1px 3px;border-radius:4px}
+.ord button:hover:not(:disabled){color:var(--ink);background:var(--line)}
+.ord button:disabled{opacity:.22;cursor:default}
+.del{border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:12px;padding:2px 3px;border-radius:6px;flex:none}
+.del:hover{color:var(--bad)}
+</style>
+</head>
+<body>
+<main>
+<h1>🗓️ Garde des enfants – qui prend quoi ?</h1>
+<p class="sub">Du lundi 19 octobre (soir) au vendredi 23 octobre (midi) : matin et soir/nuit, 1 ou 2 personnes par créneau. Chacun indique dispos et préférences, puis on arbitre.</p>
+
+<div class="card">
+  <div class="bar" style="margin-bottom:6px"><b style="font-size:14px">⚙️ Règles d'affectation</b></div>
+  <div class="rules">
+    <label class="rule"><input type="checkbox" id="rMulti"> Autoriser plusieurs créneaux / personne <small>(sinon max 1)</small></label>
+    <label class="rule" id="rContigWrap"><input type="checkbox" id="rContig"> Si plusieurs : créneaux contigus obligatoires <small>(qui se touchent, ex. Mar 🌙 + Mer ☀️)</small></label>
+  </div>
+  <p class="hint" id="rulesHint" style="margin:8px 0 0"></p>
+  <p class="warn" id="warn"></p>
+</div>
+
+<div class="card">
+  <div class="bar">
+    <div class="seg" id="mode"><button data-m="pref" class="on">1 · Dispos & préférences</button><button data-m="asg">2 · Affecter</button></div>
+    <button class="btn pri" id="auto">✨ Proposition auto</button>
+    <button class="btn" id="clear">Vider les affectations</button>
+    <button class="btn" id="addP" title="Ajouter une personne">＋ Personne</button>
+  </div>
+  <p class="hint" id="hint"></p>
+  <div class="scroll"><table id="grid"></table></div>
+  <div class="leg">
+    <span><i class="sw s2"></i>★ Préfère</span><span><i class="sw s1"></i>Possible</span><span><i class="sw s0"></i>Indispo</span><span><i class="sw" style="background:var(--asg)"></i>✓ Affecté</span>
+  </div>
+  <div class="summary" id="summary"></div>
+</div>
+</main>
+
+<script>
+const DAYS=['Lun 19','Mar 20','Mer 21','Jeu 22','Ven 23'];
+const SLOTS=[[0,1],[1,0],[1,1],[2,0],[2,1],[3,0],[3,1],[4,0]];
+const SL=['☀️','🌙'];const SLN=['matin','soir/nuit'];
+const NS=8;
+const KEY='garde-arbitrage-v3';
+const DEFAULT_RULES={multi:true,contiguous:false};
+let st=null,mode='pref';
+
+function blank(){
+  const names=['Jordi','Julie D','Julie B','Hugo','Ludo','Marie','Claire'];
+  return{names,
+    pref:names.map(()=>Array(NS).fill(1)),
+    asg:names.map(()=>Array(NS).fill(false)),need:Array(NS).fill(1),
+    rules:{...DEFAULT_RULES}};
+}
+try{st=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!st||!Array.isArray(st.names)||!Array.isArray(st.pref)||st.pref.length!==st.names.length||!st.names.length)st=blank();
+// normalise les lignes (anciens saves v3 à 6 personnes, lignes incomplètes…)
+st.names=st.names.map(n=>String(n??'').slice(0,14));
+st.pref=st.names.map((_,p)=>Array.from({length:NS},(__,i)=>(st.pref[p]&&st.pref[p][i]===0)?0:(st.pref[p]&&st.pref[p][i]===2)?2:1));
+st.asg=st.names.map((_,p)=>Array.from({length:NS},(__,i)=>!!(st.asg[p]&&st.asg[p][i]&&st.pref[p][i]>0)));
+if(!Array.isArray(st.need)||st.need.length!==NS)st.need=Array(NS).fill(1);
+// ajoute Claire aux plannings existants qui ne l'ont pas encore
+if(!st.names.some(n=>n.trim().toLowerCase()==='claire')){
+  st.names.push('Claire');
+  st.pref.push(Array(NS).fill(1));
+  st.asg.push(Array(NS).fill(false));
+}
+if(!st.rules||typeof st.rules.multi!=='boolean')st.rules={...DEFAULT_RULES};
+if(typeof st.rules.contiguous!=='boolean')st.rules.contiguous=false;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cnt=i=>st.asg.filter(a=>a[i]).length;
+const slotsOf=p=>{const s=[];for(let i=0;i<NS;i++)if(st.asg[p][i])s.push(i);return s};
+const isContig=arr=>{if(arr.length<=1)return true;const s=[...arr].sort((a,b)=>a-b);for(let k=1;k<s.length;k++)if(s[k]!==s[k-1]+1)return false;return true};
+// Retourne null si OK, sinon la raison du hors-règle. extra = créneau qu'on s'apprête à ajouter.
+function violationOf(p,extra=-1){
+  const s=slotsOf(p);
+  if(extra>=0&&!st.asg[p][extra])s.push(extra);
+  if(s.length>1&&!st.rules.multi)return 'plusieurs créneaux interdits (max 1 / personne)';
+  if(s.length>1&&st.rules.multi&&st.rules.contiguous&&!isContig(s))return 'créneaux non contigus (doivent se toucher : ex. Mar 🌙 + Mer ☀️)';
+  return null;
+}
+function warn(msg){
+  const w=document.getElementById('warn');
+  if(!w)return;
+  w.textContent='⛔ '+msg;
+  w.classList.add('show');
+  clearTimeout(warn._t);
+  warn._t=setTimeout(()=>w.classList.remove('show'),3500);
+}
+function movePerson(p,dir){
+  const q=p+dir;
+  if(q<0||q>=st.names.length)return;
+  for(const k of ['names','pref','asg']){const t=st[k][p];st[k][p]=st[k][q];st[k][q]=t}
+  save();render();
+}
+function addPerson(name){
+  const nm=String(name??'').trim().slice(0,14)||('Personne '+(st.names.length+1));
+  st.names.push(nm);
+  st.pref.push(Array(NS).fill(1));
+  st.asg.push(Array(NS).fill(false));
+  save();render();
+}
+function delPerson(p){
+  if(st.names.length<=1){warn('Impossible : il faut au moins une personne.');return}
+  const nm=st.names[p]||('ligne '+(p+1));
+  if(!confirm(`Retirer ${nm} du planning ? (dispos et affectations perdues)`))return;
+  st.names.splice(p,1);st.pref.splice(p,1);st.asg.splice(p,1);
+  save();render();
+}
+
+function render(){
+  // synchro contrôles des règles
+  const rM=document.getElementById('rMulti'),rC=document.getElementById('rContig'),rCW=document.getElementById('rContigWrap'),rH=document.getElementById('rulesHint');
+  if(rM)rM.checked=!!st.rules.multi;
+  if(rC){rC.checked=!!st.rules.contiguous;rC.disabled=!st.rules.multi}
+  if(rCW)rCW.classList.toggle('off',!st.rules.multi);
+  if(rH)rH.textContent=!st.rules.multi
+    ?'Règle active : chaque personne = 1 créneau max. L\'auto et la saisie manuelle refusent tout 2ᵉ créneau.'
+    :st.rules.contiguous
+    ?'Règle active : plusieurs créneaux autorisés, mais ils doivent se toucher (bloc contigu, ex. Mar 🌙 + Mer ☀️). Tout créneau qui créerait un trou est refusé.'
+    :'Règle active : plusieurs créneaux autorisés, même non contigus.';
+  const g=document.getElementById('grid');
+  let h='<tr><th></th>'+DAYS.map((d,di)=>`<th class="dayh" colspan="${SLOTS.filter(x=>x[0]===di).length}">${d}</th>`).join('')+'<th></th></tr>';
+  h+='<tr><th class="lbl">Besoin</th>'+Array.from({length:NS},(_,i)=>`<th><button class="need" data-need="${i}" title="Nombre de personnes nécessaires">${SL[SLOTS[i][1]]} ×${st.need[i]}</button></th>`).join('')+'<th></th></tr>';
+  h+='<tr><th class="lbl">Affecté</th>'+Array.from({length:NS},(_,i)=>{const n=cnt(i),k=st.need[i];
+    return `<th><div class="cov ${n<k?'miss':n>k?'over':'ok'}">${n}/${k}</div></th>`}).join('')+'<th></th></tr>';
+  h+='<tr><th class="lbl">Candidats</th>'+Array.from({length:NS},(_,i)=>{
+    const c=st.pref.filter(p=>p[i]>0).length,s=st.pref.filter(p=>p[i]===2).length;
+    return `<th><div class="cand">${c}${s?` · ★${s}`:''}</div></th>`}).join('')+'<th class="lbl tot">Charge</th></tr>';
+  st.names.forEach((nm,p)=>{
+    const viol=violationOf(p);
+    const last=st.names.length-1;
+    h+=`<tr><td><div class="rowhead"><span class="ord"><button data-mv="-1" data-p="${p}" ${p===0?'disabled':''} title="Monter ${esc(nm)}">▲</button><button data-mv="1" data-p="${p}" ${p===last?'disabled':''} title="Descendre ${esc(nm)}">▼</button></span><input class="nm${viol?' viol':''}" data-p="${p}" value="${esc(nm)}" maxlength="14" aria-label="Prénom ligne ${p+1}"${viol?` title="⚠️ ${viol}"`:''}><button class="del" data-del="${p}" title="Retirer ${esc(nm)}">✕</button></div></td>`;
+    for(let i=0;i<NS;i++){
+      const v=st.pref[p][i],a=st.asg[p][i];
+      const wb=(!a&&v>0&&mode==='asg')?violationOf(p,i):null;
+      const label=a?'✓':v===2?'★':v===0?'×':'';
+      const cls=`c s${v}${a?' a':''}${(mode==='asg'&&(v===0||wb))?' nok':''}`;
+      const tip=`${nm} – ${DAYS[SLOTS[i][0]]} ${SLN[SLOTS[i][1]]}${wb?' — ⚠️ '+wb:''}`;
+      h+=`<td><button class="${cls}" data-p="${p}" data-i="${i}" title="${esc(tip)}">${label}</button></td>`;
+    }
+    const tot=st.asg[p].filter(Boolean).length;
+    const bars=st.asg[p].map((a,i)=>a?`<i class="${st.pref[p][i]===2?'p':''}"></i>`:'').join('');
+    h+=`<td class="tot${viol?' viol':''}"><div class="tb">${bars}<span style="margin-left:4px;color:var(--mute)">${tot}</span></div></td></tr>`;
+  });
+  g.innerHTML=h;
+  // summary
+  const miss=[],over=[];
+  for(let i=0;i<NS;i++){const n=cnt(i);const lab=DAYS[SLOTS[i][0]]+' '+SL[SLOTS[i][1]];if(n<st.need[i])miss.push(lab);else if(n>st.need[i])over.push(lab)}
+  const loads=st.asg.map(a=>a.filter(Boolean).length);
+  const gap=Math.max(...loads)-Math.min(...loads);
+  const asgTot=loads.reduce((a,b)=>a+b,0);
+  const prefHit=st.asg.reduce((s,a,p)=>s+a.filter((x,i)=>x&&st.pref[p][i]===2).length,0);
+  const noCand=Array.from({length:NS},(_,i)=>i).filter(i=>st.pref.every(p=>p[i]===0)).map(i=>DAYS[SLOTS[i][0]]+' '+SL[SLOTS[i][1]]);
+  const horsRegles=[];
+  st.names.forEach((nm,p)=>{const v=violationOf(p);if(v)horsRegles.push(`${esc(nm)} (${v})`)});
+  document.getElementById('summary').innerHTML=
+   `<span>Non couverts : <b class="${miss.length?'bad':'ok'}">${miss.length}</b>${miss.length?' ('+miss.join(', ')+')':''}</span>`+
+   (over.length?`<span>En surplus : <b>${over.join(', ')}</b></span>`:'')+
+   (noCand.length?`<span class="bad">Aucun candidat : ${noCand.join(', ')}</span>`:'')+
+   `<span>Écart de charge max–min : <b class="${gap>1?'bad':'ok'}">${gap}</b></span>`+
+   `<span>Préférences respectées : <b>${asgTot?prefHit+'/'+asgTot:'–'}</b></span>`+
+   (horsRegles.length?`<span class="bad">⛔ Hors règles (${horsRegles.length}) : ${horsRegles.join(' · ')}</span>`:`<span class="ok">✓ Règles respectées</span>`);
+  document.getElementById('hint').textContent=mode==='pref'
+    ?'Cliquez une case pour passer de Possible → ★ Préfère → Indispo. Cliquez ☀️/🌙 ×1 pour passer le besoin à 2 personnes.'
+    :'Cliquez une case pour affecter / retirer la personne (impossible si indispo ou hors règles). Les barres à droite montrent la charge de chacun (vert = préféré).';
+  document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+}
+
+document.getElementById('grid').addEventListener('click',e=>{
+  const mv=e.target.closest('[data-mv]');
+  if(mv){movePerson(+mv.dataset.p,+mv.dataset.mv);return}
+  const del=e.target.closest('[data-del]');
+  if(del){delPerson(+del.dataset.del);return}
+  const n=e.target.closest('.need');
+  if(n){const i=+n.dataset.need;st.need[i]=st.need[i]===1?2:1;save();render();return}
+  const c=e.target.closest('.c');if(!c)return;
+  const p=+c.dataset.p,i=+c.dataset.i;
+  if(mode==='pref'){
+    const v=st.pref[p][i];const nv=v===1?2:v===2?0:1;st.pref[p][i]=nv;
+    if(nv===0)st.asg[p][i]=false;
+  }else{
+    if(st.pref[p][i]===0)return;
+    if(st.asg[p][i]){st.asg[p][i]=false}
+    else{
+      const wb=violationOf(p,i);
+      if(wb){warn(`${st.names[p]} : ${wb}. Retirez d'abord un créneau ou changez les règles.`);return}
+      st.asg[p][i]=true;
+    }
+  }
+  save();render();
+});
+document.getElementById('grid').addEventListener('input',e=>{
+  if(e.target.classList.contains('nm')){st.names[+e.target.dataset.p]=e.target.value;save()}
+});
+document.getElementById('mode').addEventListener('click',e=>{const b=e.target.closest('button');if(b){mode=b.dataset.m;render()}});
+document.getElementById('rMulti').addEventListener('change',e=>{st.rules.multi=e.target.checked;save();render()});
+document.getElementById('rContig').addEventListener('change',e=>{st.rules.contiguous=e.target.checked;save();render()});
+document.getElementById('clear').onclick=()=>{st.asg=st.asg.map(a=>a.map(()=>false));save();render()};
+document.getElementById('addP').onclick=()=>{
+  if(st.names.length>=14){warn('Limite de 14 personnes atteinte.');return}
+  const name=prompt('Prénom de la personne à ajouter :','');
+  if(name===null)return;
+  addPerson(name);
+};
+document.getElementById('auto').onclick=()=>{
+  st.asg=st.asg.map(a=>a.map(()=>false));
+  const load=Array(st.names.length).fill(0);
+  const order=Array.from({length:NS},(_,i)=>i).sort((a,b)=>st.pref.filter(p=>p[a]>0).length-st.pref.filter(p=>p[b]>0).length);
+  order.forEach(i=>{
+    for(let k=0;k<st.need[i];k++){
+      const cands=[...Array(st.names.length).keys()].filter(p=>st.pref[p][i]>0&&!st.asg[p][i]&&!violationOf(p,i))
+        .sort((a,b)=>(load[a]*2-st.pref[a][i]*1.5)-(load[b]*2-st.pref[b][i]*1.5));
+      if(!cands.length)break;
+      st.asg[cands[0]][i]=true;load[cands[0]]++;
+    }
+  });
+  mode='asg';save();render();
+  const hors=st.names.filter((_,p)=>violationOf(p)).length;
+  const miss=Array.from({length:NS},(_,i)=>i).filter(i=>cnt(i)<st.need[i]).length;
+  if(miss&&!st.rules.multi)warn(`${miss} créneau(x) non couvert(s) : la règle « max 1 / personne » bloque le remplissage. Autorisez plusieurs créneaux si besoin.`);
+};
+render();
+</script>
+</body>
+</html>
